@@ -4,8 +4,10 @@ import { LegalTerm, speakText, getGeminiExplanation } from '@/lib/api';
 import { exportToPDF } from '@/lib/pdfExport';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, FileText, Volume2, Brain, Loader2 } from 'lucide-react';
+import { Copy, FileText, Volume2, Brain, Loader2, StopCircle, Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface TermDetailProps {
   term: LegalTerm;
@@ -19,6 +21,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [geminiExplanation, setGeminiExplanation] = useState<string | null>(null);
   const [isGeminiOpen, setIsGeminiOpen] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const handleCopyTerm = () => {
     navigator.clipboard.writeText(term.term);
@@ -36,16 +39,62 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
   };
 
   const handleSpeakExplanation = () => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    
+    setIsSpeaking(true);
     speakText(`${term.term}. ${term.explanation}`, explanationVoice);
+    
     toast({
       description: "Narrando explicação...",
     });
+    
+    // Detect when speech ends
+    const utterance = new SpeechSynthesisUtterance(`${term.term}. ${term.explanation}`);
+    utterance.onend = () => setIsSpeaking(false);
+    
+    // Fallback in case onend doesn't trigger
+    setTimeout(() => {
+      if (!window.speechSynthesis.speaking) {
+        setIsSpeaking(false);
+      }
+    }, (term.term.length + term.explanation.length) * 80); // Rough estimate of speaking time
   };
 
   const handleSpeakExample = () => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    
+    setIsSpeaking(true);
     speakText(term.example, exampleVoice);
+    
     toast({
       description: "Narrando exemplo prático...",
+    });
+    
+    // Detect when speech ends
+    const utterance = new SpeechSynthesisUtterance(term.example);
+    utterance.onend = () => setIsSpeaking(false);
+    
+    // Fallback in case onend doesn't trigger
+    setTimeout(() => {
+      if (!window.speechSynthesis.speaking) {
+        setIsSpeaking(false);
+      }
+    }, term.example.length * 80); // Rough estimate of speaking time
+  };
+
+  const handleStopSpeaking = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    toast({
+      description: "Narração interrompida.",
     });
   };
 
@@ -63,6 +112,33 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
       });
     } finally {
       setIsPdfLoading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Termo Jurídico: ${term.term}`,
+          text: `Confira o termo jurídico "${term.term}" no Juris Explorer.`,
+          url: window.location.href,
+        });
+        toast({
+          description: "Conteúdo compartilhado com sucesso.",
+        });
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          toast({
+            variant: "destructive",
+            description: "Erro ao compartilhar conteúdo.",
+          });
+        }
+      }
+    } else {
+      handleCopyAll();
+      toast({
+        description: "Conteúdo copiado para a área de transferência, pois o compartilhamento não é suportado neste navegador.",
+      });
     }
   };
 
@@ -90,48 +166,96 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
   return (
     <Card className="w-full max-w-3xl bg-card border-border animate-fade-in glass-morphism">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold text-gradient">{term.term}</CardTitle>
+        <CardTitle className="text-2xl md:text-3xl font-bold text-gradient flex items-center justify-between">
+          {term.term}
+          {isSpeaking && (
+            <Button 
+              size="icon"
+              variant="ghost" 
+              className="h-8 w-8 rounded-full" 
+              onClick={handleStopSpeaking}
+            >
+              <StopCircle className="h-5 w-5 text-destructive" />
+              <span className="sr-only">Parar narração</span>
+            </Button>
+          )}
+        </CardTitle>
         <CardDescription className="text-muted-foreground">Termo Jurídico</CardDescription>
       </CardHeader>
+      
       <CardContent className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Explicação</h3>
-          <p className="text-foreground/90">{term.explanation}</p>
-          <Button
-            variant="ghost" 
-            size="sm" 
-            className="mt-2 text-primary hover:text-primary/80"
-            onClick={handleSpeakExplanation}
-          >
-            <Volume2 className="mr-1 h-4 w-4" /> 
-            Ouvir explicação
-          </Button>
-        </div>
-        
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Exemplo Prático</h3>
-          <p className="text-foreground/90 p-3 bg-secondary/40 rounded-md border border-border/50">{term.example}</p>
-          <Button
-            variant="ghost" 
-            size="sm" 
-            className="mt-2 text-primary hover:text-primary/80"
-            onClick={handleSpeakExample}
-          >
-            <Volume2 className="mr-1 h-4 w-4" />
-            Ouvir exemplo
-          </Button>
-        </div>
-
-        {isGeminiOpen && geminiExplanation && (
-          <div className="animate-fade-in">
-            <h3 className="text-lg font-semibold mb-2">Explicação Avançada (Gemini)</h3>
-            <div className="text-foreground/90 p-4 bg-primary/10 rounded-md border border-primary/30 whitespace-pre-line">
-              {geminiExplanation}
+        <Tabs defaultValue="explanation" className="w-full">
+          <TabsList className="grid grid-cols-2 mb-4">
+            <TabsTrigger value="explanation">Explicação</TabsTrigger>
+            <TabsTrigger value="example">Exemplo Prático</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="explanation" className="space-y-4">
+            <div className="text-foreground/90 space-y-2">
+              <p>{term.explanation}</p>
+              
+              <div className="flex mt-3">
+                <Button
+                  variant="outline" 
+                  size="sm" 
+                  className="text-primary hover:text-primary/80 mr-2"
+                  onClick={handleSpeakExplanation}
+                >
+                  <Volume2 className="mr-1 h-4 w-4" /> 
+                  {isSpeaking ? "Pausar narração" : "Ouvir explicação"}
+                </Button>
+                <Button
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleGetGeminiExplanation}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Brain className="mr-1 h-4 w-4" />
+                  )}
+                  {geminiExplanation 
+                    ? (isGeminiOpen ? "Fechar detalhes" : "Ver detalhes") 
+                    : "Explicar com Gemini"
+                  }
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+            
+            {isGeminiOpen && geminiExplanation && (
+              <div className="animate-fade-in mt-4">
+                <Separator className="my-4" />
+                <h3 className="text-lg font-semibold mb-2 flex items-center">
+                  <Brain className="mr-2 h-5 w-5 text-primary" />
+                  Explicação Avançada (Gemini)
+                </h3>
+                <div className="text-foreground/90 p-4 bg-primary/10 rounded-md border border-primary/30 whitespace-pre-line">
+                  {geminiExplanation}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="example">
+            <div className="space-y-2">
+              <p className="text-foreground/90 p-4 bg-secondary/40 rounded-md border border-border/50">{term.example}</p>
+              
+              <Button
+                variant="outline" 
+                size="sm" 
+                className="mt-3 text-primary hover:text-primary/80"
+                onClick={handleSpeakExample}
+              >
+                <Volume2 className="mr-1 h-4 w-4" />
+                {isSpeaking ? "Pausar narração" : "Ouvir exemplo"}
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
-      <CardFooter className="flex flex-wrap gap-2 justify-between">
+      
+      <CardFooter className="flex flex-wrap gap-2 justify-between border-t border-border/40 pt-4">
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline" 
@@ -162,24 +286,15 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
             )}
             Exportar PDF
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleShare}
+          >
+            <Share2 className="mr-1 h-4 w-4" />
+            Compartilhar
+          </Button>
         </div>
-        
-        <Button
-          variant="secondary" 
-          size="sm"
-          onClick={handleGetGeminiExplanation}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-          ) : (
-            <Brain className="mr-1 h-4 w-4" />
-          )}
-          {geminiExplanation 
-            ? (isGeminiOpen ? "Fechar explicação Gemini" : "Ver explicação Gemini") 
-            : "Explicar com Gemini"
-          }
-        </Button>
       </CardFooter>
     </Card>
   );
