@@ -4,7 +4,7 @@ const API_KEY = "AIzaSyD-eQn5WM5NF56ELBwVr9OTLTTtiRXwEQY";
 // Spreadsheet ID from the URL
 const SPREADSHEET_ID = "1rctu_xg4P0KkMWKbzu7-mgJp-HjCu-cT8DZqNAzln-s";
 // Raw range with special characters
-const RANGE_RAW = "Página1!A2:C";
+const RANGE_RAW = "Página 1!A2:C";
 // Encode the range to handle special characters
 const RANGE = encodeURIComponent(RANGE_RAW);
 
