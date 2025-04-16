@@ -1,10 +1,9 @@
-
 // API key for Google Sheets
 const API_KEY = "AIzaSyD-eQn5WM5NF56ELBwVr9OTLTTtiRXwEQY";
 // Spreadsheet ID from the URL
 const SPREADSHEET_ID = "1rctu_xg4P0KkMWKbzu7-mgJp-HjCu-cT8DZqNAzln-s";
-// Range to fetch data from (A2:C, skipping header)
-const RANGE = "A2:C";
+// Range to fetch data from (Página1!A2:C, skipping header)
+const RANGE = "Página1!A2:C";
 
 export interface LegalTerm {
   term: string;
