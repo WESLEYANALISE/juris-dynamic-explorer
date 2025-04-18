@@ -16,6 +16,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ terms, onSelectTerm, className })
   const [query, setQuery] = useState('');
   const [filteredTerms, setFilteredTerms] = useState<LegalTerm[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,26 +46,37 @@ const SearchBar: React.FC<SearchBarProps> = ({ terms, onSelectTerm, className })
   }, []);
 
   const handleSelect = (term: LegalTerm) => {
-    setQuery(term.term);
     onSelectTerm(term);
+    setQuery('');
     setIsDropdownOpen(false);
   };
 
   const handleSearch = () => {
     if (filteredTerms.length > 0) {
-      onSelectTerm(filteredTerms[0]);
+      handleSelect(filteredTerms[0]);
     }
   };
 
   return (
-    <div className={cn("relative w-full max-w-2xl", className)} ref={dropdownRef}>
+    <div 
+      className={cn(
+        "relative w-full max-w-2xl transition-all duration-300",
+        isFocused ? "mt-[-120px]" : "",
+        className
+      )} 
+      ref={dropdownRef}
+    >
       <div className="relative flex items-center">
         <Input
           type="text"
           placeholder="Pesquisar termo jurídico..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => query && setIsDropdownOpen(true)}
+          onFocus={() => {
+            setIsFocused(true);
+            if (query) setIsDropdownOpen(true);
+          }}
+          onBlur={() => setIsFocused(false)}
           className="w-full pl-10 pr-4 py-3 bg-secondary text-foreground rounded-lg border-none shadow-md focus:ring-2 focus:ring-primary"
         />
         <Search 

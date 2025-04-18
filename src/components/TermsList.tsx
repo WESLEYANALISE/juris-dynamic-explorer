@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { LegalTerm } from '@/lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -37,6 +36,11 @@ const TermsList: React.FC<TermsListProps> = ({ terms, onSelectTerm }) => {
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredTerms]);
   
+  const handleTermClick = (term: LegalTerm) => {
+    onSelectTerm(term);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="w-full max-w-3xl mx-auto glass-morphism p-4 rounded-lg animate-fade-in">
       <div className="flex items-center justify-between mb-4">
@@ -74,7 +78,7 @@ const TermsList: React.FC<TermsListProps> = ({ terms, onSelectTerm }) => {
                   <li 
                     key={index} 
                     className="p-2 rounded hover:bg-primary/10 cursor-pointer transition-colors"
-                    onClick={() => onSelectTerm(term)}
+                    onClick={() => handleTermClick(term)}
                   >
                     {term.term}
                   </li>

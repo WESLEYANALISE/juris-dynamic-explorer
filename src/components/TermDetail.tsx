@@ -91,7 +91,16 @@ const TermDetail: React.FC<TermDetailProps> = ({ term }) => {
   };
 
   const handleCopyAll = () => {
-    const text = `${term.term}\n\nExplicação:\n${term.explanation}\n\nExemplo Prático:\n${term.example}`;
+    const text = `${term.term}
+
+Explicação:
+${term.explanation}
+
+Exemplo Prático:
+${term.example}
+
+${geminiExplanation ? `\nExplicação Avançada (Gemini):\n${geminiExplanation}` : ''}`;
+
     navigator.clipboard.writeText(text);
     toast({
       description: "Todo o conteúdo copiado para a área de transferência.",

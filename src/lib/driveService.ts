@@ -1,4 +1,3 @@
-
 // Mock implementation of Google Drive service for browser environment
 // This replaces the server-side googleapis implementation which requires Node.js process
 
@@ -16,7 +15,7 @@ export function createPdfBlob(pdfDoc: any): Promise<Blob> {
 
 /**
  * Mock function to simulate uploading to Google Drive
- * In a real application, this would be handled by a server-side API
+ * In browser environment, this creates a downloadable link
  * @param fileBlob - File blob to upload
  * @param fileName - Name for the file
  * @returns URL of the uploaded file
@@ -25,14 +24,13 @@ export async function uploadToDrive(fileBlob: Blob, fileName: string): Promise<s
   try {
     console.log(`Mock uploading file: ${fileName} (${Math.round(fileBlob.size / 1024)} KB)`);
     
-    // Generate a random mock URL for the file
-    // In a real application, this would be the actual Google Drive URL
-    const mockId = Math.random().toString(36).substring(2, 15);
-    
-    // Create a local object URL for the PDF to allow immediate viewing
+    // Create a local object URL for the PDF
     const objectUrl = URL.createObjectURL(fileBlob);
     
-    // Store the file info in localStorage to persist between page refreshes
+    // Open the PDF in a new tab/window
+    window.open(objectUrl, '_blank');
+    
+    // Store the file info in localStorage
     const storedFiles = JSON.parse(localStorage.getItem('storedPdfFiles') || '{}');
     storedFiles[fileName] = {
       objectUrl,
@@ -40,9 +38,6 @@ export async function uploadToDrive(fileBlob: Blob, fileName: string): Promise<s
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
     };
     localStorage.setItem('storedPdfFiles', JSON.stringify(storedFiles));
-    
-    // In a real app, the file would be uploaded to Drive via a server API
-    // and return an actual Google Drive URL
     
     return objectUrl;
   } catch (error) {
