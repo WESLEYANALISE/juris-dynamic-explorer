@@ -14,10 +14,7 @@ const ViewedIndicator: React.FC<ViewedIndicatorProps> = ({ show, className }) =>
   
   useEffect(() => {
     if (show) {
-      // Reset progress animation
       setProgress(0);
-      
-      // Start progress animation
       const timer = setTimeout(() => {
         setProgress(100);
       }, 100);

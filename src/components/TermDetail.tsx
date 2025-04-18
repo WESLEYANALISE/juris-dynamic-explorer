@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { LegalTerm, speakText, getGeminiExplanation, trackTermView } from '@/lib/api';
 import { exportToPDF } from '@/lib/pdfExport';
@@ -21,11 +20,67 @@ const TermDetail: React.FC<TermDetailProps> = ({ term }) => {
   const [isGeminiOpen, setIsGeminiOpen] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeTab, setActiveTab] = useState("explanation");
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
 
-  // Track term view when component mounts
   React.useEffect(() => {
     trackTermView(term.term);
+    
+    // Cleanup function to stop any playing audio when component unmounts
+    return () => {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.remove();
+      }
+    };
   }, [term.term]);
+
+  const stopCurrentAudio = () => {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.remove();
+      setCurrentAudio(null);
+    }
+    setIsSpeaking(false);
+  };
+
+  const handlePlayAudio = async (text: string, type: string) => {
+    if (isSpeaking) {
+      stopCurrentAudio();
+      return;
+    }
+    
+    setIsSpeaking(true);
+    try {
+      await speakText(text);
+      
+      toast({
+        description: `Narrando ${type}...`,
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={stopCurrentAudio}
+            className="bg-destructive/10 hover:bg-destructive/20 text-destructive"
+          >
+            <StopCircle className="mr-1 h-4 w-4" />
+            Parar
+          </Button>
+        ),
+      });
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      toast({
+        variant: "destructive",
+        description: "Erro ao reproduzir áudio.",
+      });
+    } finally {
+      setIsSpeaking(false);
+    }
+  };
+
+  const handleSpeakExplanation = () => handlePlayAudio(`${term.term}. ${term.explanation}`, "explicação");
+  const handleSpeakExample = () => handlePlayAudio(term.example, "exemplo prático");
+  const handleSpeakGemini = () => geminiExplanation && handlePlayAudio(geminiExplanation, "explicação avançada");
 
   const handleCopyTerm = () => {
     navigator.clipboard.writeText(term.term);
@@ -39,95 +94,6 @@ const TermDetail: React.FC<TermDetailProps> = ({ term }) => {
     navigator.clipboard.writeText(text);
     toast({
       description: "Todo o conteúdo copiado para a área de transferência.",
-    });
-  };
-
-  const handleSpeakExplanation = async () => {
-    if (isSpeaking) {
-      handleStopSpeaking();
-      return;
-    }
-    
-    setIsSpeaking(true);
-    try {
-      await speakText(`${term.term}. ${term.explanation}`);
-      setIsSpeaking(false);
-    } catch (error) {
-      setIsSpeaking(false);
-    }
-    
-    toast({
-      description: "Narrando explicação...",
-      action: (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleStopSpeaking}
-        >
-          <StopCircle className="mr-1 h-4 w-4 text-destructive" />
-          Parar
-        </Button>
-      ),
-    });
-  };
-
-  const handleSpeakExample = async () => {
-    if (isSpeaking) {
-      handleStopSpeaking();
-      return;
-    }
-    
-    setIsSpeaking(true);
-    try {
-      await speakText(term.example);
-      setIsSpeaking(false);
-    } catch (error) {
-      setIsSpeaking(false);
-    }
-    
-    toast({
-      description: "Narrando exemplo prático...",
-      action: (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleStopSpeaking}
-        >
-          <StopCircle className="mr-1 h-4 w-4 text-destructive" />
-          Parar
-        </Button>
-      ),
-    });
-  };
-
-  const handleSpeakGemini = async () => {
-    if (!geminiExplanation) return;
-    
-    if (isSpeaking) {
-      handleStopSpeaking();
-      return;
-    }
-    
-    setIsSpeaking(true);
-    try {
-      await speakText(geminiExplanation);
-      setIsSpeaking(false);
-    } catch (error) {
-      setIsSpeaking(false);
-    }
-    
-    toast({
-      description: "Narrando explicação avançada...",
-      action: (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleStopSpeaking}
-        >
-          <StopCircle className="mr-1 h-4 w-4 text-destructive" />
-          Parar
-        </Button>
-      ),
     });
   };
 
@@ -182,16 +148,16 @@ const TermDetail: React.FC<TermDetailProps> = ({ term }) => {
   return (
     <Card className="w-full max-w-3xl bg-card border-border animate-scale-in glass-morphism">
       <CardHeader>
-        <CardTitle className="text-2xl md:text-3xl font-bold text-gradient flex items-center justify-between">
-          {term.term}
+        <CardTitle className="text-2xl md:text-3xl font-bold text-gradient flex items-center justify-between group">
+          <span className="group-hover:scale-105 transition-transform">{term.term}</span>
           {isSpeaking && (
             <Button 
               size="icon"
               variant="ghost" 
-              className="h-8 w-8 rounded-full animate-pulse" 
-              onClick={handleStopSpeaking}
+              className="h-8 w-8 rounded-full animate-pulse bg-destructive/10 hover:bg-destructive/20 text-destructive" 
+              onClick={stopCurrentAudio}
             >
-              <StopCircle className="h-5 w-5 text-destructive" />
+              <StopCircle className="h-5 w-5" />
               <span className="sr-only">Parar narração</span>
             </Button>
           )}
@@ -331,7 +297,6 @@ const TermDetail: React.FC<TermDetailProps> = ({ term }) => {
   );
 };
 
-// Helper function to apply conditional classes
 function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(' ');
 }

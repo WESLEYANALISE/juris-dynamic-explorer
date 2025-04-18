@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { LegalTerm } from '@/lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, BookOpen } from 'lucide-react';
 
 interface TermsListProps {
   terms: LegalTerm[];
@@ -23,7 +23,6 @@ const TermsList: React.FC<TermsListProps> = ({ terms, onSelectTerm }) => {
     return sortedTerms.filter(term => term.term.toLowerCase().includes(lowerFilter));
   }, [sortedTerms, filter]);
   
-  // Group terms by first letter for alphabetical sections
   const groupedTerms = useMemo(() => {
     const groups: Record<string, LegalTerm[]> = {};
     
@@ -39,7 +38,19 @@ const TermsList: React.FC<TermsListProps> = ({ terms, onSelectTerm }) => {
   }, [filteredTerms]);
   
   return (
-    <div className="w-full max-w-3xl mx-auto glass-morphism p-4 rounded-lg">
+    <div className="w-full max-w-3xl mx-auto glass-morphism p-4 rounded-lg animate-fade-in">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <BookOpen className="h-5 w-5 text-primary" />
+          <span className="font-medium">
+            {terms.length} termos disponíveis
+          </span>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {filteredTerms.length} termos encontrados
+        </div>
+      </div>
+
       <div className="relative mb-4">
         <Input
           type="text"
@@ -54,15 +65,15 @@ const TermsList: React.FC<TermsListProps> = ({ terms, onSelectTerm }) => {
       <ScrollArea className="h-[60vh]">
         <div className="space-y-4">
           {groupedTerms.map(([letter, terms]) => (
-            <div key={letter} className="mb-2">
-              <h3 className="text-lg font-bold text-primary mb-2 sticky top-0 bg-background/90 backdrop-blur-sm p-1 z-10">
+            <div key={letter} className="mb-2 animate-fade-in" style={{ animationDelay: '100ms' }}>
+              <h3 className="text-lg font-bold text-primary mb-2 sticky top-0 bg-background/90 backdrop-blur-sm p-1 z-10 rounded">
                 {letter}
               </h3>
               <ul className="space-y-1">
                 {terms.map((term, index) => (
                   <li 
                     key={index} 
-                    className="p-2 rounded hover:bg-secondary cursor-pointer transition-colors"
+                    className="p-2 rounded hover:bg-primary/10 cursor-pointer transition-colors"
                     onClick={() => onSelectTerm(term)}
                   >
                     {term.term}
@@ -73,7 +84,7 @@ const TermsList: React.FC<TermsListProps> = ({ terms, onSelectTerm }) => {
           ))}
           
           {groupedTerms.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-8 text-muted-foreground animate-fade-in">
               Nenhum termo encontrado para "{filter}"
             </div>
           )}

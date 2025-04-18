@@ -1,4 +1,3 @@
-
 // API key for Google Sheets
 const API_KEY = "AIzaSyBCPCIV9jUxa4sD6TrlR74q3KTKqDZjoT8";
 // TTS API Key
@@ -115,13 +114,17 @@ export async function fetchLegalTerms(): Promise<LegalTerm[]> {
 }
 
 // Text-to-speech function using Google Cloud TTS API
+let currentAudio: HTMLAudioElement | null = null;
+
 export async function speakText(text: string): Promise<void> {
-  if (window.speechSynthesis && window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.remove();
+    currentAudio = null;
   }
   
   try {
-    const apiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${TTS_API_KEY}`;
+    const apiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=AIzaSyDlM4OBBfKmZDMSitzbSX8OCBOgqkGCQVc`;
     
     const requestBody = {
       input: { text },
@@ -149,16 +152,19 @@ export async function speakText(text: string): Promise<void> {
     const data = await response.json();
     const audioContent = data.audioContent;
     
-    // Play audio
     const audio = new Audio(`data:audio/mp3;base64,${audioContent}`);
+    currentAudio = audio;
+    
     audio.play();
     
     return new Promise((resolve) => {
-      audio.onended = () => resolve();
+      audio.onended = () => {
+        currentAudio = null;
+        resolve();
+      };
     });
   } catch (error) {
     console.error('Error with text-to-speech:', error);
-    // Fall back to Web Speech API
     fallbackSpeakText(text);
   }
 }
