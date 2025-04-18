@@ -1,6 +1,5 @@
 
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { LegalTerm } from './api';
 import { uploadToDrive, createPdfBlob } from './driveService';
 
@@ -66,12 +65,12 @@ export async function exportToPDF(term: LegalTerm): Promise<string> {
     // Create blob from PDF
     const pdfBlob = await createPdfBlob(pdf);
     
-    // Upload to Google Drive
-    const driveUrl = await uploadToDrive(pdfBlob, fileName);
+    // Upload to storage (mock Google Drive in browser)
+    const fileUrl = await uploadToDrive(pdfBlob, fileName);
     
-    return driveUrl;
+    return fileUrl;
   } catch (error) {
-    console.error('Error generating and uploading PDF:', error);
-    throw new Error('Failed to generate and upload PDF');
+    console.error('Error generating PDF:', error);
+    throw new Error('Failed to generate PDF');
   }
 }
