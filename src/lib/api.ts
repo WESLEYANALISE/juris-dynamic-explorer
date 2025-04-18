@@ -1,10 +1,9 @@
-
 // API key for Google Sheets
-const API_KEY = "AIzaSyD-eQn5WM5NF56ELBwVr9OTLTTtiRXwEQY";
+const API_KEY = "AIzaSyBCPCIV9jUxa4sD6TrlR74q3KTKqDZjoT8";
 // Spreadsheet ID from the URL
-const SPREADSHEET_ID = "1rctu_xg4P0KkMWKbzu7-mgJp-HjCu-cT8DZqNAzln-s";
+const SPREADSHEET_ID = "1oOMJ5wZYySKj2yjufxSyZtmfYJAE04ctUafJkO7rMnQ";
 // Raw range with special characters
-const RANGE_RAW = "Página 1!A2:C";
+const RANGE_RAW = "busca!A2:C";
 // Encode the range to handle special characters
 const RANGE = encodeURIComponent(RANGE_RAW);
 
@@ -144,4 +143,3 @@ export async function getGeminiExplanation(term: string, explanation: string): P
 export function generatePDF(term: LegalTerm): void {
   console.log("PDF generation requested for:", term);
 }
-

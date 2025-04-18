@@ -4,7 +4,7 @@ import { LegalTerm, speakText, getGeminiExplanation } from '@/lib/api';
 import { exportToPDF } from '@/lib/pdfExport';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, FileText, Volume2, Brain, Loader2, StopCircle, Share2 } from 'lucide-react';
+import { Copy, FileText, Volume2, Brain, Loader2, StopCircle, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,6 +22,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
   const [geminiExplanation, setGeminiExplanation] = useState<string | null>(null);
   const [isGeminiOpen, setIsGeminiOpen] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activeTab, setActiveTab] = useState("explanation");
 
   const handleCopyTerm = () => {
     navigator.clipboard.writeText(term.term);
@@ -50,6 +51,16 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
     
     toast({
       description: "Narrando explicação...",
+      action: (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleStopSpeaking}
+        >
+          <StopCircle className="mr-1 h-4 w-4 text-destructive" />
+          Parar
+        </Button>
+      ),
     });
     
     // Detect when speech ends
@@ -76,6 +87,16 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
     
     toast({
       description: "Narrando exemplo prático...",
+      action: (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleStopSpeaking}
+        >
+          <StopCircle className="mr-1 h-4 w-4 text-destructive" />
+          Parar
+        </Button>
+      ),
     });
     
     // Detect when speech ends
@@ -88,6 +109,40 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
         setIsSpeaking(false);
       }
     }, term.example.length * 80); // Rough estimate of speaking time
+  };
+
+  const handleSpeakGemini = () => {
+    if (!geminiExplanation) return;
+    
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    
+    setIsSpeaking(true);
+    speakText(geminiExplanation, explanationVoice);
+    
+    toast({
+      description: "Narrando explicação avançada...",
+      action: (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleStopSpeaking}
+        >
+          <StopCircle className="mr-1 h-4 w-4 text-destructive" />
+          Parar
+        </Button>
+      ),
+    });
+    
+    // Fallback to stop speaking indicator
+    setTimeout(() => {
+      if (!window.speechSynthesis.speaking) {
+        setIsSpeaking(false);
+      }
+    }, geminiExplanation.length * 60);
   };
 
   const handleStopSpeaking = () => {
@@ -115,33 +170,6 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
     }
   };
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Termo Jurídico: ${term.term}`,
-          text: `Confira o termo jurídico "${term.term}" no Juris Explorer.`,
-          url: window.location.href,
-        });
-        toast({
-          description: "Conteúdo compartilhado com sucesso.",
-        });
-      } catch (error) {
-        if ((error as Error).name !== 'AbortError') {
-          toast({
-            variant: "destructive",
-            description: "Erro ao compartilhar conteúdo.",
-          });
-        }
-      }
-    } else {
-      handleCopyAll();
-      toast({
-        description: "Conteúdo copiado para a área de transferência, pois o compartilhamento não é suportado neste navegador.",
-      });
-    }
-  };
-
   const handleGetGeminiExplanation = async () => {
     if (geminiExplanation) {
       setIsGeminiOpen(!isGeminiOpen);
@@ -156,7 +184,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
     } catch (error) {
       toast({
         variant: "destructive",
-        description: "Erro ao obter explicação do Gemini.",
+        description: "Erro ao obter explicação da Gemini.",
       });
     } finally {
       setIsLoading(false);
@@ -164,7 +192,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
   };
 
   return (
-    <Card className="w-full max-w-3xl bg-card border-border animate-fade-in glass-morphism">
+    <Card className="w-full max-w-3xl bg-card border-border animate-scale-in glass-morphism">
       <CardHeader>
         <CardTitle className="text-2xl md:text-3xl font-bold text-gradient flex items-center justify-between">
           {term.term}
@@ -172,7 +200,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
             <Button 
               size="icon"
               variant="ghost" 
-              className="h-8 w-8 rounded-full" 
+              className="h-8 w-8 rounded-full animate-pulse" 
               onClick={handleStopSpeaking}
             >
               <StopCircle className="h-5 w-5 text-destructive" />
@@ -180,25 +208,34 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
             </Button>
           )}
         </CardTitle>
-        <CardDescription className="text-muted-foreground">Termo Jurídico</CardDescription>
+        <CardDescription className="text-muted-foreground flex items-center">
+          <Sparkles className="h-4 w-4 mr-1 text-primary animate-pulse-subtle" />
+          Termo Jurídico
+        </CardDescription>
       </CardHeader>
       
       <CardContent className="space-y-6">
-        <Tabs defaultValue="explanation" className="w-full">
+        <Tabs defaultValue="explanation" className="w-full" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-2 mb-4">
-            <TabsTrigger value="explanation">Explicação</TabsTrigger>
-            <TabsTrigger value="example">Exemplo Prático</TabsTrigger>
+            <TabsTrigger value="explanation" className="relative overflow-hidden group">
+              <span className="relative z-10">Explicação</span>
+              <span className="absolute inset-0 bg-primary/10 transform scale-x-0 group-data-[state=active]:scale-x-100 transition-transform origin-left"></span>
+            </TabsTrigger>
+            <TabsTrigger value="example" className="relative overflow-hidden group">
+              <span className="relative z-10">Exemplo Prático</span>
+              <span className="absolute inset-0 bg-primary/10 transform scale-x-0 group-data-[state=active]:scale-x-100 transition-transform origin-left"></span>
+            </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="explanation" className="space-y-4">
+          <TabsContent value="explanation" className="space-y-4 animate-fade-in">
             <div className="text-foreground/90 space-y-2">
-              <p>{term.explanation}</p>
+              <p className="leading-relaxed">{term.explanation}</p>
               
-              <div className="flex mt-3">
+              <div className="flex flex-wrap gap-2 mt-3">
                 <Button
                   variant="outline" 
                   size="sm" 
-                  className="text-primary hover:text-primary/80 mr-2"
+                  className="text-primary hover:text-primary/80 hover:scale-105 transition-transform"
                   onClick={handleSpeakExplanation}
                 >
                   <Volume2 className="mr-1 h-4 w-4" /> 
@@ -209,6 +246,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
                   size="sm"
                   onClick={handleGetGeminiExplanation}
                   disabled={isLoading}
+                  className="hover:scale-105 transition-transform"
                 >
                   {isLoading ? (
                     <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -230,21 +268,31 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
                   <Brain className="mr-2 h-5 w-5 text-primary" />
                   Explicação Avançada (Gemini)
                 </h3>
-                <div className="text-foreground/90 p-4 bg-primary/10 rounded-md border border-primary/30 whitespace-pre-line">
+                <div className="text-foreground/90 p-4 bg-primary/10 rounded-md border border-primary/30 whitespace-pre-line relative">
                   {geminiExplanation}
+                  
+                  <Button
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3 text-primary hover:text-primary/80 hover:scale-105 transition-transform"
+                    onClick={handleSpeakGemini}
+                  >
+                    <Volume2 className="mr-1 h-4 w-4" /> 
+                    {isSpeaking ? "Pausar narração" : "Ouvir explicação avançada"}
+                  </Button>
                 </div>
               </div>
             )}
           </TabsContent>
           
-          <TabsContent value="example">
+          <TabsContent value="example" className="animate-fade-in">
             <div className="space-y-2">
-              <p className="text-foreground/90 p-4 bg-secondary/40 rounded-md border border-border/50">{term.example}</p>
+              <p className="text-foreground/90 p-4 bg-secondary/40 rounded-md border border-border/50 leading-relaxed">{term.example}</p>
               
               <Button
                 variant="outline" 
                 size="sm" 
-                className="mt-3 text-primary hover:text-primary/80"
+                className="mt-3 text-primary hover:text-primary/80 hover:scale-105 transition-transform"
                 onClick={handleSpeakExample}
               >
                 <Volume2 className="mr-1 h-4 w-4" />
@@ -261,6 +309,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
             variant="outline" 
             size="sm" 
             onClick={handleCopyTerm}
+            className="hover:scale-105 transition-transform"
           >
             <Copy className="mr-1 h-4 w-4" />
             Copiar termo
@@ -269,6 +318,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
             variant="outline" 
             size="sm" 
             onClick={handleCopyAll}
+            className="hover:scale-105 transition-transform"
           >
             <Copy className="mr-1 h-4 w-4" />
             Copiar tudo
@@ -278,6 +328,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
             size="sm" 
             onClick={handleExportPDF}
             disabled={isPdfLoading}
+            className="hover:scale-105 transition-transform"
           >
             {isPdfLoading ? (
               <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -285,14 +336,6 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
               <FileText className="mr-1 h-4 w-4" />
             )}
             Exportar PDF
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleShare}
-          >
-            <Share2 className="mr-1 h-4 w-4" />
-            Compartilhar
           </Button>
         </div>
       </CardFooter>
