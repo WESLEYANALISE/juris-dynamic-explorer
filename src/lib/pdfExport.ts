@@ -2,9 +2,10 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { LegalTerm } from './api';
+import { uploadToDrive, createPdfBlob } from './driveService';
 
-// Generate PDF from a term
-export async function exportToPDF(term: LegalTerm): Promise<void> {
+// Generate PDF from a term and upload to Drive
+export async function exportToPDF(term: LegalTerm): Promise<string> {
   try {
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -49,16 +50,28 @@ export async function exportToPDF(term: LegalTerm): Promise<void> {
     const exampleLines = pdf.splitTextToSize(term.example, 170);
     pdf.text(exampleLines, 20, exampleY + 10);
     
-    // Add footer with date
+    // Add footer with date and expiration note
     const now = new Date();
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 7);
+    
     pdf.setFontSize(10);
     pdf.setTextColor(100, 100, 100);
-    pdf.text(`Exportado em ${now.toLocaleDateString('pt-BR')} - Juris Explorer`, 20, 285);
+    pdf.text(`Exportado em ${now.toLocaleDateString('pt-BR')} - Juris Explorer`, 20, 280);
+    pdf.text(`Este PDF será removido automaticamente em ${expirationDate.toLocaleDateString('pt-BR')}`, 20, 285);
     
-    // Save the PDF
-    pdf.save(`${term.term.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+    // Create file name
+    const fileName = `${term.term.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    
+    // Create blob from PDF
+    const pdfBlob = await createPdfBlob(pdf);
+    
+    // Upload to Google Drive
+    const driveUrl = await uploadToDrive(pdfBlob, fileName);
+    
+    return driveUrl;
   } catch (error) {
-    console.error('Error generating PDF:', error);
-    throw new Error('Failed to generate PDF');
+    console.error('Error generating and uploading PDF:', error);
+    throw new Error('Failed to generate and upload PDF');
   }
 }

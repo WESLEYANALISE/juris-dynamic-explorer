@@ -21,6 +21,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term }) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeTab, setActiveTab] = useState("explanation");
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   React.useEffect(() => {
     trackTermView(term.term);
@@ -110,14 +111,26 @@ const TermDetail: React.FC<TermDetailProps> = ({ term }) => {
   const handleExportPDF = async () => {
     setIsPdfLoading(true);
     try {
-      await exportToPDF(term);
+      const driveUrl = await exportToPDF(term);
+      setPdfUrl(driveUrl);
       toast({
-        description: "PDF exportado com sucesso.",
+        description: "PDF exportado e disponibilizado no Google Drive.",
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.open(driveUrl, '_blank')}
+            className="bg-primary/10 hover:bg-primary/20 text-primary"
+          >
+            <FileText className="mr-1 h-4 w-4" />
+            Abrir PDF
+          </Button>
+        ),
       });
     } catch (error) {
       toast({
         variant: "destructive",
-        description: "Erro ao exportar PDF.",
+        description: "Erro ao exportar PDF para o Google Drive.",
       });
     } finally {
       setIsPdfLoading(false);
@@ -289,8 +302,19 @@ const TermDetail: React.FC<TermDetailProps> = ({ term }) => {
             ) : (
               <FileText className="mr-1 h-4 w-4" />
             )}
-            Exportar PDF
+            {pdfUrl ? 'Exportar novo PDF' : 'Exportar PDF'}
           </Button>
+          {pdfUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(pdfUrl, '_blank')}
+              className="bg-primary/10 hover:bg-primary/20 text-primary hover:scale-105 transition-transform"
+            >
+              <FileText className="mr-1 h-4 w-4" />
+              Ver PDF
+            </Button>
+          )}
         </div>
       </CardFooter>
     </Card>
