@@ -1,17 +1,22 @@
 
 import React, { useState, useEffect } from 'react';
-import { fetchLegalTerms, LegalTerm, getVoices } from '@/lib/api';
+import { fetchLegalTerms, LegalTerm } from '@/lib/api';
 import Header from '@/components/Header';
 import SearchBar from '@/components/SearchBar';
 import TermDetail from '@/components/TermDetail';
-import { BookOpen, Loader2 } from 'lucide-react';
+import TermsList from '@/components/TermsList';
+import RecentlyViewed from '@/components/RecentlyViewed';
+import ViewedIndicator from '@/components/ViewedIndicator';
+import { BookOpen, Loader2, List, Search as SearchIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index: React.FC = () => {
   const [terms, setTerms] = useState<LegalTerm[]>([]);
   const [selectedTerm, setSelectedTerm] = useState<LegalTerm | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [explanationVoice, setExplanationVoice] = useState<SpeechSynthesisVoice | undefined>(undefined);
-  const [exampleVoice, setExampleVoice] = useState<SpeechSynthesisVoice | undefined>(undefined);
+  const [viewMode, setViewMode] = useState<'search' | 'list'>('search');
+  const [showViewedIndicator, setShowViewedIndicator] = useState(false);
 
   useEffect(() => {
     const loadTerms = async () => {
@@ -25,59 +30,31 @@ const Index: React.FC = () => {
       }
     };
 
-    const loadVoices = async () => {
-      try {
-        const voices = await getVoices();
-        
-        // Try to find Portuguese voices, or fall back to English
-        const portugueseVoices = voices.filter(voice => voice.lang.startsWith('pt'));
-        const englishVoices = voices.filter(voice => voice.lang.startsWith('en'));
-        
-        // Set primary voice for explanation (prefer female voice for explanation)
-        const femaleVoices = portugueseVoices.length > 0 
-          ? portugueseVoices.filter(v => !v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('female'))
-          : englishVoices.filter(v => !v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('female'));
-        
-        if (femaleVoices.length > 0) {
-          setExplanationVoice(femaleVoices[0]);
-        } else if (portugueseVoices.length > 0) {
-          setExplanationVoice(portugueseVoices[0]);
-        } else if (englishVoices.length > 0) {
-          setExplanationVoice(englishVoices[0]);
-        }
-
-        // Set secondary voice for examples (prefer male voice for examples)
-        const maleVoices = portugueseVoices.length > 0
-          ? portugueseVoices.filter(v => v.name.toLowerCase().includes('male') && !v.name.toLowerCase().includes('female'))
-          : englishVoices.filter(v => v.name.toLowerCase().includes('male') && !v.name.toLowerCase().includes('female'));
-        
-        if (maleVoices.length > 0 && maleVoices[0] !== explanationVoice) {
-          setExampleVoice(maleVoices[0]);
-        } else if (portugueseVoices.length > 1) {
-          setExampleVoice(portugueseVoices.find(v => v !== explanationVoice) || portugueseVoices[0]);
-        } else if (englishVoices.length > 1) {
-          setExampleVoice(englishVoices.find(v => v !== explanationVoice) || englishVoices[0]);
-        } else {
-          setExampleVoice(explanationVoice);
-        }
-      } catch (error) {
-        console.error('Failed to load voices:', error);
-      }
-    };
-
     loadTerms();
-    if (window.speechSynthesis) {
-      loadVoices();
-    }
   }, []);
 
   const handleSelectTerm = (term: LegalTerm) => {
     setSelectedTerm(term);
+    
+    // Show viewed indicator
+    setShowViewedIndicator(true);
+    
+    // Hide indicator after 3 seconds
+    setTimeout(() => {
+      setShowViewedIndicator(false);
+    }, 3000);
+  };
+  
+  const handleSelectTermByName = (termName: string) => {
+    const term = terms.find(t => t.term === termName);
+    if (term) {
+      handleSelectTerm(term);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
+      <Header totalTerms={terms.length} />
       
       <main className="flex-grow container mx-auto px-4 py-8 flex flex-col items-center">
         <div className="w-full max-w-3xl mb-8 text-center">
@@ -85,13 +62,34 @@ const Index: React.FC = () => {
           <p className="text-muted-foreground">
             Pesquise termos jurídicos para obter explicações detalhadas e exemplos práticos
           </p>
+          
+          <Tabs defaultValue="search" className="mt-6" onValueChange={(value) => setViewMode(value as any)}>
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+              <TabsTrigger value="search" className="flex items-center justify-center">
+                <SearchIcon className="h-4 w-4 mr-2" />
+                Pesquisar
+              </TabsTrigger>
+              <TabsTrigger value="list" className="flex items-center justify-center">
+                <List className="h-4 w-4 mr-2" />
+                Listar Todos
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
-        <SearchBar 
-          terms={terms} 
-          onSelectTerm={handleSelectTerm} 
-          className="mb-8"
-        />
+        <RecentlyViewed onSelectTermByName={handleSelectTermByName} />
+
+        {viewMode === 'search' ? (
+          <SearchBar 
+            terms={terms} 
+            onSelectTerm={handleSelectTerm} 
+            className="mb-8"
+          />
+        ) : (
+          <div className="w-full mb-8">
+            <TermsList terms={terms} onSelectTerm={handleSelectTerm} />
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
@@ -99,11 +97,7 @@ const Index: React.FC = () => {
             <p className="text-muted-foreground">Carregando termos jurídicos...</p>
           </div>
         ) : selectedTerm ? (
-          <TermDetail 
-            term={selectedTerm} 
-            explanationVoice={explanationVoice}
-            exampleVoice={exampleVoice}
-          />
+          <TermDetail term={selectedTerm} />
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center glass-morphism p-8 rounded-lg">
             <BookOpen className="h-16 w-16 text-primary/60 mb-4 animate-pulse-subtle" />
@@ -114,6 +108,8 @@ const Index: React.FC = () => {
           </div>
         )}
       </main>
+
+      <ViewedIndicator show={showViewedIndicator} />
 
       <footer className="py-6 text-center text-sm text-muted-foreground">
         <p>© 2023-2025 Juris Explorer • Todos os direitos reservados</p>

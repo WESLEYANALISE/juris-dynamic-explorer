@@ -1,5 +1,8 @@
+
 // API key for Google Sheets
 const API_KEY = "AIzaSyBCPCIV9jUxa4sD6TrlR74q3KTKqDZjoT8";
+// TTS API Key
+const TTS_API_KEY = "AIzaSyDlM4OBBfKmZDMSitzbSX8OCBOgqkGCQVc";
 // Spreadsheet ID from the URL
 const SPREADSHEET_ID = "1oOMJ5wZYySKj2yjufxSyZtmfYJAE04ctUafJkO7rMnQ";
 // Raw range with special characters
@@ -12,6 +15,37 @@ export interface LegalTerm {
   explanation: string;
   example: string;
 }
+
+// Local storage for tracking term views
+const getViewedTerms = (): Record<string, number> => {
+  try {
+    const stored = localStorage.getItem('viewedTerms');
+    return stored ? JSON.parse(stored) : {};
+  } catch (error) {
+    console.error('Error reading viewed terms from localStorage:', error);
+    return {};
+  }
+};
+
+// Track when a term is viewed
+export const trackTermView = (term: string): void => {
+  try {
+    const viewedTerms = getViewedTerms();
+    viewedTerms[term] = (viewedTerms[term] || 0) + 1;
+    localStorage.setItem('viewedTerms', JSON.stringify(viewedTerms));
+  } catch (error) {
+    console.error('Error tracking term view:', error);
+  }
+};
+
+// Get most viewed terms
+export const getMostViewedTerms = (limit = 5): Array<{term: string, views: number}> => {
+  const viewedTerms = getViewedTerms();
+  return Object.entries(viewedTerms)
+    .map(([term, views]) => ({ term, views }))
+    .sort((a, b) => b.views - a.views)
+    .slice(0, limit);
+};
 
 // Mock data to use while the API issues are being resolved
 const MOCK_TERMS: LegalTerm[] = [
@@ -80,23 +114,69 @@ export async function fetchLegalTerms(): Promise<LegalTerm[]> {
   }
 }
 
-// Text-to-speech function using the Web Speech API
-export function speakText(text: string, voice?: SpeechSynthesisVoice): void {
-  if (!window.speechSynthesis) return;
+// Text-to-speech function using Google Cloud TTS API
+export async function speakText(text: string): Promise<void> {
+  if (window.speechSynthesis && window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+  }
   
-  // Stop any current speech
-  window.speechSynthesis.cancel();
+  try {
+    const apiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${TTS_API_KEY}`;
+    
+    const requestBody = {
+      input: { text },
+      voice: {
+        languageCode: 'pt-BR',
+        name: 'pt-BR-Wavenet-E'
+      },
+      audioConfig: {
+        audioEncoding: 'MP3'
+      }
+    };
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`TTS API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const audioContent = data.audioContent;
+    
+    // Play audio
+    const audio = new Audio(`data:audio/mp3;base64,${audioContent}`);
+    audio.play();
+    
+    return new Promise((resolve) => {
+      audio.onended = () => resolve();
+    });
+  } catch (error) {
+    console.error('Error with text-to-speech:', error);
+    // Fall back to Web Speech API
+    fallbackSpeakText(text);
+  }
+}
+
+// Fallback to Web Speech API
+function fallbackSpeakText(text: string): void {
+  if (!window.speechSynthesis) return;
   
   const utterance = new SpeechSynthesisUtterance(text);
   
-  // Set voice if provided
-  if (voice) {
-    utterance.voice = voice;
+  // Try to find Portuguese voice
+  const voices = window.speechSynthesis.getVoices();
+  const ptVoice = voices.find(voice => voice.lang.startsWith('pt'));
+  if (ptVoice) {
+    utterance.voice = ptVoice;
   }
   
-  // Slightly slower speech rate for better comprehension
   utterance.rate = 0.9;
-  
   window.speechSynthesis.speak(utterance);
 }
 

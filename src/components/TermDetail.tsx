@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { LegalTerm, speakText, getGeminiExplanation } from '@/lib/api';
+import { LegalTerm, speakText, getGeminiExplanation, trackTermView } from '@/lib/api';
 import { exportToPDF } from '@/lib/pdfExport';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,11 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface TermDetailProps {
   term: LegalTerm;
-  explanationVoice?: SpeechSynthesisVoice;
-  exampleVoice?: SpeechSynthesisVoice;
 }
 
-const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, exampleVoice }) => {
+const TermDetail: React.FC<TermDetailProps> = ({ term }) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
@@ -23,6 +21,11 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
   const [isGeminiOpen, setIsGeminiOpen] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeTab, setActiveTab] = useState("explanation");
+
+  // Track term view when component mounts
+  React.useEffect(() => {
+    trackTermView(term.term);
+  }, [term.term]);
 
   const handleCopyTerm = () => {
     navigator.clipboard.writeText(term.term);
@@ -39,15 +42,19 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
     });
   };
 
-  const handleSpeakExplanation = () => {
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
+  const handleSpeakExplanation = async () => {
+    if (isSpeaking) {
+      handleStopSpeaking();
       return;
     }
     
     setIsSpeaking(true);
-    speakText(`${term.term}. ${term.explanation}`, explanationVoice);
+    try {
+      await speakText(`${term.term}. ${term.explanation}`);
+      setIsSpeaking(false);
+    } catch (error) {
+      setIsSpeaking(false);
+    }
     
     toast({
       description: "Narrando explicação...",
@@ -62,28 +69,21 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
         </Button>
       ),
     });
-    
-    // Detect when speech ends
-    const utterance = new SpeechSynthesisUtterance(`${term.term}. ${term.explanation}`);
-    utterance.onend = () => setIsSpeaking(false);
-    
-    // Fallback in case onend doesn't trigger
-    setTimeout(() => {
-      if (!window.speechSynthesis.speaking) {
-        setIsSpeaking(false);
-      }
-    }, (term.term.length + term.explanation.length) * 80); // Rough estimate of speaking time
   };
 
-  const handleSpeakExample = () => {
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
+  const handleSpeakExample = async () => {
+    if (isSpeaking) {
+      handleStopSpeaking();
       return;
     }
     
     setIsSpeaking(true);
-    speakText(term.example, exampleVoice);
+    try {
+      await speakText(term.example);
+      setIsSpeaking(false);
+    } catch (error) {
+      setIsSpeaking(false);
+    }
     
     toast({
       description: "Narrando exemplo prático...",
@@ -98,30 +98,23 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
         </Button>
       ),
     });
-    
-    // Detect when speech ends
-    const utterance = new SpeechSynthesisUtterance(term.example);
-    utterance.onend = () => setIsSpeaking(false);
-    
-    // Fallback in case onend doesn't trigger
-    setTimeout(() => {
-      if (!window.speechSynthesis.speaking) {
-        setIsSpeaking(false);
-      }
-    }, term.example.length * 80); // Rough estimate of speaking time
   };
 
-  const handleSpeakGemini = () => {
+  const handleSpeakGemini = async () => {
     if (!geminiExplanation) return;
     
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
+    if (isSpeaking) {
+      handleStopSpeaking();
       return;
     }
     
     setIsSpeaking(true);
-    speakText(geminiExplanation, explanationVoice);
+    try {
+      await speakText(geminiExplanation);
+      setIsSpeaking(false);
+    } catch (error) {
+      setIsSpeaking(false);
+    }
     
     toast({
       description: "Narrando explicação avançada...",
@@ -136,17 +129,12 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
         </Button>
       ),
     });
-    
-    // Fallback to stop speaking indicator
-    setTimeout(() => {
-      if (!window.speechSynthesis.speaking) {
-        setIsSpeaking(false);
-      }
-    }, geminiExplanation.length * 60);
   };
 
   const handleStopSpeaking = () => {
-    window.speechSynthesis.cancel();
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
     setIsSpeaking(false);
     toast({
       description: "Narração interrompida.",
@@ -238,7 +226,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
                   className="text-primary hover:text-primary/80 hover:scale-105 transition-transform"
                   onClick={handleSpeakExplanation}
                 >
-                  <Volume2 className="mr-1 h-4 w-4" /> 
+                  <Volume2 className={cn("mr-1 h-4 w-4", isSpeaking && "animate-pulse")} /> 
                   {isSpeaking ? "Pausar narração" : "Ouvir explicação"}
                 </Button>
                 <Button
@@ -277,7 +265,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
                     className="mt-3 text-primary hover:text-primary/80 hover:scale-105 transition-transform"
                     onClick={handleSpeakGemini}
                   >
-                    <Volume2 className="mr-1 h-4 w-4" /> 
+                    <Volume2 className={cn("mr-1 h-4 w-4", isSpeaking && "animate-pulse")} /> 
                     {isSpeaking ? "Pausar narração" : "Ouvir explicação avançada"}
                   </Button>
                 </div>
@@ -295,7 +283,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
                 className="mt-3 text-primary hover:text-primary/80 hover:scale-105 transition-transform"
                 onClick={handleSpeakExample}
               >
-                <Volume2 className="mr-1 h-4 w-4" />
+                <Volume2 className={cn("mr-1 h-4 w-4", isSpeaking && "animate-pulse")} />
                 {isSpeaking ? "Pausar narração" : "Ouvir exemplo"}
               </Button>
             </div>
@@ -342,5 +330,10 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, explanationVoice, example
     </Card>
   );
 };
+
+// Helper function to apply conditional classes
+function cn(...classes: (string | boolean | undefined)[]) {
+  return classes.filter(Boolean).join(' ');
+}
 
 export default TermDetail;

@@ -1,9 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Scale, Gavel, Sparkles } from 'lucide-react';
+import { BookOpen, Scale, Gavel, Sparkles, BookText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  totalTerms?: number;
+}
+
+const Header: React.FC<HeaderProps> = ({ totalTerms = 0 }) => {
   const [animate, setAnimate] = useState(false);
   
   useEffect(() => {
@@ -77,6 +81,15 @@ const Header: React.FC = () => {
           <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-lg">
             Explore termos jurídicos com explicações detalhadas e exemplos práticos
           </p>
+          
+          {totalTerms > 0 && (
+            <div className="mt-3 flex items-center justify-center animate-fade-in">
+              <BookText className="h-4 w-4 mr-1.5 text-primary" />
+              <span className="text-sm font-medium">
+                <span className="text-primary font-bold">{totalTerms}</span> termos disponíveis
+              </span>
+            </div>
+          )}
           
           <div className="w-32 h-1 bg-gradient-to-r from-transparent via-primary/40 to-transparent rounded-full mt-3 animate-pulse-subtle" />
         </div>
