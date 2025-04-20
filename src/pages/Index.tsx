@@ -7,7 +7,8 @@ import TermDetail from '@/components/TermDetail';
 import TermsList from '@/components/TermsList';
 import RecentlyViewed from '@/components/RecentlyViewed';
 import ViewedIndicator from '@/components/ViewedIndicator';
-import { BookOpen, Loader2, List, Search as SearchIcon } from 'lucide-react';
+import Areas from '@/components/Areas';
+import { BookOpen, Loader2, List, Search as SearchIcon, Grid2X2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -15,7 +16,7 @@ const Index: React.FC = () => {
   const [terms, setTerms] = useState<LegalTerm[]>([]);
   const [selectedTerm, setSelectedTerm] = useState<LegalTerm | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'search' | 'list'>('search');
+  const [viewMode, setViewMode] = useState<'search' | 'areas' | 'list'>('search');
   const [showViewedIndicator, setShowViewedIndicator] = useState(false);
 
   useEffect(() => {
@@ -64,10 +65,14 @@ const Index: React.FC = () => {
           </p>
           
           <Tabs defaultValue="search" className="mt-6" onValueChange={(value) => setViewMode(value as any)}>
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
               <TabsTrigger value="search" className="flex items-center justify-center">
                 <SearchIcon className="h-4 w-4 mr-2" />
                 Pesquisar
+              </TabsTrigger>
+              <TabsTrigger value="areas" className="flex items-center justify-center">
+                <Grid2X2 className="h-4 w-4 mr-2" />
+                Áreas
               </TabsTrigger>
               <TabsTrigger value="list" className="flex items-center justify-center">
                 <List className="h-4 w-4 mr-2" />
@@ -79,17 +84,21 @@ const Index: React.FC = () => {
 
         <RecentlyViewed onSelectTermByName={handleSelectTermByName} />
 
-        {viewMode === 'search' ? (
+        <TabsContent value="search" className="w-full mb-8">
           <SearchBar 
             terms={terms} 
             onSelectTerm={handleSelectTerm} 
             className="mb-8"
           />
-        ) : (
-          <div className="w-full mb-8">
-            <TermsList terms={terms} onSelectTerm={handleSelectTerm} />
-          </div>
-        )}
+        </TabsContent>
+        
+        <TabsContent value="areas" className="w-full mb-8">
+          <Areas onSelectTerm={handleSelectTerm} />
+        </TabsContent>
+        
+        <TabsContent value="list" className="w-full mb-8">
+          <TermsList terms={terms} onSelectTerm={handleSelectTerm} />
+        </TabsContent>
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">

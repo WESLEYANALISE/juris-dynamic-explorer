@@ -1,4 +1,3 @@
-
 // API key for Google Sheets
 const API_KEY = "AIzaSyBCPCIV9jUxa4sD6TrlR74q3KTKqDZjoT8";
 // TTS API Key
@@ -9,6 +8,10 @@ const SPREADSHEET_ID = "1oOMJ5wZYySKj2yjufxSyZtmfYJAE04ctUafJkO7rMnQ";
 const RANGE_RAW = "busca!A2:C";
 // Encode the range to handle special characters
 const RANGE = encodeURIComponent(RANGE_RAW);
+
+// Supabase URL and key for connecting to the database
+const SUPABASE_URL = "https://qlikvwofqxmweaigmanu.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsaWt2d29mcXhtd2VhaWdtYW51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTM3NDc4NDIsImV4cCI6MjAyOTMyMzg0Mn0.UD-C_l2zspbxhRo_Fn9jJd37DI2Gi-nA9gSTwJiUZkY";
 
 export interface LegalTerm {
   term: string;
@@ -249,4 +252,63 @@ export async function getGeminiExplanation(term: string, explanation: string): P
 // Generate PDF with jspdf
 export function generatePDF(term: LegalTerm): void {
   console.log("PDF generation requested for:", term);
+}
+
+// Fetch areas from Supabase
+export async function fetchAreas(): Promise<string[]> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/termos_dicionario?select=area`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch areas: ${response.status}`);
+    }
+
+    const data = await response.json();
+    // Extract unique areas
+    const uniqueAreas = new Set<string>();
+    data.forEach((item: { area: string }) => {
+      if (item.area) uniqueAreas.add(item.area);
+    });
+    
+    return Array.from(uniqueAreas).sort();
+  } catch (error) {
+    console.error("Error fetching areas:", error);
+    return ["Direito Civil", "Direito Penal", "Direito Constitucional"]; // Default areas as fallback
+  }
+}
+
+// Fetch terms for a specific area from Supabase
+export async function fetchAreaTerms(area: string): Promise<LegalTerm[]> {
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/termos_dicionario?area=eq.${encodeURIComponent(area)}&select=termos,significado,exemplo`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch terms for area ${area}: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Transform the data into our LegalTerm structure
+    return data.map((item: { termos: string; significado: string; exemplo: string }) => ({
+      term: item.termos || "",
+      explanation: item.significado || "",
+      example: item.exemplo || ""
+    }));
+  } catch (error) {
+    console.error(`Error fetching terms for area ${area}:`, error);
+    return MOCK_TERMS.slice(0, 3); // Return some mock data as fallback
+  }
 }
