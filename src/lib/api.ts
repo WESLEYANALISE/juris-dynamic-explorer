@@ -1,3 +1,4 @@
+
 // API key for Google Sheets
 const API_KEY = "AIzaSyBCPCIV9jUxa4sD6TrlR74q3KTKqDZjoT8";
 // TTS API Key
@@ -26,12 +27,32 @@ const getViewedTerms = (): Record<string, number> => {
   }
 };
 
+// Get recent terms (recently viewed)
+export const getRecentTerms = (limit = 5): string[] => {
+  try {
+    const viewedTerms = localStorage.getItem('recentTerms');
+    if (!viewedTerms) return [];
+    
+    const terms: string[] = JSON.parse(viewedTerms);
+    return terms.slice(0, limit);
+  } catch (error) {
+    console.error('Error getting recent terms:', error);
+    return [];
+  }
+};
+
 // Track when a term is viewed
 export const trackTermView = (term: string): void => {
   try {
+    // Update view count
     const viewedTerms = getViewedTerms();
     viewedTerms[term] = (viewedTerms[term] || 0) + 1;
     localStorage.setItem('viewedTerms', JSON.stringify(viewedTerms));
+    
+    // Update recent terms list
+    const recentTerms = getRecentTerms(20); // Get up to 20 recent terms
+    const updatedRecent = [term, ...recentTerms.filter(t => t !== term)];
+    localStorage.setItem('recentTerms', JSON.stringify(updatedRecent));
   } catch (error) {
     console.error('Error tracking term view:', error);
   }
